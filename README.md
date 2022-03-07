@@ -128,7 +128,7 @@ When prompted, enter your regular user’s password and then press Enter. Rememb
 
 Example:
 
-$ sudo <command_to_run>
+    $ sudo <command_to_run>
 
 ## TROUBLESHOOTING:
 
@@ -203,7 +203,7 @@ Type in the password and press ENTER. You should see something like this:
 
 Now, your id_rsa.pub key has been successfully uploaded to the remote account!
 
-# PART 3: Installing Docker
+# Part 3: Installing Docker
 
 Docker is an application that simplifies the process of managing application processes in containers. Containers allow users to run applications in resource-isolated processes. In this section, we will install Docker then use it to work with containers and images, and then push an image to a Docker Repository.
 
@@ -627,13 +627,13 @@ Next, create the docker-compose.yml file:
 Insert the following content on your docker-compose.yml file, then save and close the file:
 
     version: '3.7'
-services:
-  web:
-    image: nginx:alpine
-    ports:
-      - "8000:80"
-    volumes:
-      - ./app:/usr/share/nginx/html
+    services:
+        web:
+          image: nginx:alpine
+          ports:
+            - "8000:80"
+          volumes:
+            - ./app:/usr/share/nginx/html
 
 ![](./images/25.png)
 
@@ -711,27 +711,29 @@ In case you want to also remove the base image from your system, you can use:
 
 $ docker image rm nginx:alpine
 
+![](./images/31.png)
 
-Finally, to enable SSL you’ll need a domain name pointed at your server’s public IP address. This should be something like example.com.
+Lastly, to enable SSL you’ll need a domain name pointed at your server’s public IP address. This should be something like example.com.
 
 If you do not already a domain, you can create a new domain using Google Domains:
 
 To set up a domain with your cloud account, you need to add it (and any of its existing DNS records) to the control panel, then delegate the domain by updating your registrar to use your domain name servers.
 
-Here's an example of my Ubuntu server's public IP address added to my personal domain's DNS records using Google Domains.
+![](./images/32.png)
 
+Above is an example of my Ubuntu server's public IP address added to my personal domain's DNS records using Google Domains.
 
+Once you’ve satisfied all the prerequisites, proceed to Part 5, where you’ll download and launch the Matomo software.
 
-When you’ve satisfied all the prerequisites, proceed to Part 7, where you’ll download and launch the Matomo software.
+# Part 5: Running Matomo and MariaDB with Docker Compose
 
-PART 7: Running Matomo and MariaDB with Docker Compose
-This section will put your configuration inside a matomo directory in your home directory.
+This section will put our configuration inside a matomo directory in our home directory.
 
 Let's begin by creating the Docker Compose configuration that will launch containers for both the Matomo app and a MariaDB database.
 
-First ensure you’re in your home directory:
+First, ensure you’re in your home directory:
 
-$ cd ~
+    $ cd ~
 Then create the matomo directory and cd into it:
 
 $ mkdir matomo
