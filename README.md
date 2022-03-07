@@ -8,7 +8,7 @@ Welcome!
 
 Once Nginx is installed, it will serve as our reverse proxy by intercepting requests from clients for the Matomo app. To conclude the project, we'll enable secure HTTPS connections. This will be achieved by using a **Certbot ACME (Automated Certificate Management Environment)** client, which will download and configure SSL certificates from the Let's Encrypt Certificate Authority.
 
-# **PART 1: An Ubuntu Server & UFW Firewall Foundation
+# PART 1: An Ubuntu Server & UFW Firewall Foundation
 
 To get started, you'll need a free AWS account, and then create a virtual server using the Ubuntu 20.04 server. Once this has been created, we will enable and configure a **UFW firewall (Uncomplicated Firewall).** 
 
@@ -727,232 +727,259 @@ Once you’ve satisfied all the prerequisites, proceed to Part 5, where you’ll
 
 # Part 5: Running Matomo and MariaDB with Docker Compose
 
-This section will put our configuration inside a matomo directory in our home directory.
+Our first step in this section will put our configuration inside a matomo directory in our home directory.
 
 Let's begin by creating the Docker Compose configuration that will launch containers for both the Matomo app and a MariaDB database.
 
 First, ensure you’re in your home directory:
 
     $ cd ~
+
 Then create the matomo directory and cd into it:
 
-$ mkdir matomo
+    $ mkdir matomo
 
-$ cd matomo
-Now open a new blank YAML file called docker-compose.yml:
+    $ cd matomo
 
-$ nano docker-compose.yml
+Open a new blank YAML file called docker-compose.yml:
+
+    $ nano docker-compose.yml
+
 This is the configuration file that the docker-compose software will read when bringing up your containers. Paste the following into the file:
 
 docker-compose.yml
 
-version: "3"
+    version: "3"
 
-services:
-  db:
-    image: mariadb
-    command: --max-allowed-packet=64MB
-    restart: always
-    environment:
-      - MARIADB_DATABASE=matomo
-      - MARIADB_USER
-      - MARIADB_PASSWORD
-      - MARIADB_ROOT_PASSWORD
-    volumes:
-      - ./db:/var/lib/mysql
+    services:
+      db:
+        image: mariadb
+        command: --max-allowed-packet=64MB
+        restart: always
+        environment:
+          - MARIADB_DATABASE=matomo
+          - MARIADB_USER
+          - MARIADB_PASSWORD
+          - MARIADB_ROOT_PASSWORD
+        volumes:
+          - ./db:/var/lib/mysql
 
-  app:
-    image: matomo
-    restart: always
-    volumes:
-      - ./matomo:/var/www/html
-    ports:
-      - 127.0.0.1:8080:80
+     app:
+       image: matomo
+       restart: always
+       volumes:
+         - ./matomo:/var/www/html
+      ports:
+         - 127.0.0.1:8080:80
 
+![](./images/33.png)
 
+This file defines two services, one *db* service which is the MariaDB container, and an *app* service which runs the Matomo software. Both services also reference a named volume where they store some data, and the *app* service also opens up port 8080 on the loopback (127.0.0.1) interface, which we will connect to via *localhost.*
 
-This file defines two services, one db service which is the MariaDB container, and an app service which runs the Matomo software. Both services also reference a named volume where they store some data, and the app service also opens up port 8080 on the loopback (127.0.0.1) interface, which we will connect to via localhost.
-
-Save the file and exit your text editor to continue. In nano, press CTRL+O then ENTER to save, then CTRL+X to exit.
+Save the file and exit your text editor to continue. In nano, press 'CTRL+O' then 'Enter' to save, then 'CTRL+X' to exit.
 
 The MariaDB container needs some configuration to be passed to it through environment variables in order to function properly.
 
-It is best practice to keep passwords out of your docker-compose.yml file, especially if you’ll be committing it to a Git repository or other source control system.
+It is best practice to keep passwords out of your *docker-compose.yml* file, **especially** if you’ll be committing it to a Git repository or other source control system.
 
-Instead, we’ll put the necessary information in a .env file in the same directory, which the docker-compose command will automatically load when we start our containers.
+Rather, we’ll put the necessary information in a .env file in the same directory, which the docker-compose command will automatically load when we start our containers.
 
 Open a new .env file with nano:
 
-$ nano .env
+    $ nano .env
+
 You’ll need to fill in a user name and password, as well as a strong password for the MariaDB root superuser account:
 
 .env
 
-MARIADB_USER=matomo
-MARIADB_PASSWORD=a_strong_password_for_user
-MARIADB_ROOT_PASSWORD=a_strong_password_for_root
+    MARIADB_USER=matomo
+    MARIADB_PASSWORD=a_strong_password_for_user
+    MARIADB_ROOT_PASSWORD=a_strong_password_for_root
+
 If you need help creating strong passwords you can use the openssl command to print out a random 30 character hash, which you can use as a password:
 
-$ openssl rand 30 | base64 -w 0 ; echo
+    $ openssl rand 30 | base64 -w 0 ; echo
+
 When you’re done filling out the information in your .env file, save it and exit your text editor.
 
-Next, let's bring up the two containers with docker-compose using the following command:
+Now, let's bring up the two containers with docker-compose using the following command:
 
-$ sudo docker-compose up -d
+    $ sudo docker-compose up -d
+
 The up subcommand tells docker-compose to start the containers (and volumes and networks) defined in the docker-compose.yml file. The -d flag tells it to do so in the background (“daemonize”), as shown here:
 
-
+![](./images/34.png)
 
 When that’s done, Matomo should be running. You can test that a webserver is running at localhost:8080 by fetching the homepage using the curl command:
 
-$ curl --head http://localhost:8080
+    $ curl --head http://localhost:8080
+
 This will print out only the HTTP headers from the response:
 
-
+![](./images/35.png)
 
 The 200 OK response means the Matomo server is up and running, but it’s only available on localhost. The highlighted X-Matomo-Request-Id header indicates that the server is Matomo and not something else that might be configured to listen on port 8080. Next we’ll set up Nginx to proxy public traffic to the Matomo container.
 
-Installing and Configuring Nginx
+## *Step 2: Installing and Configuring Nginx*
+
 The use of the Nginx in front of our Matomo server can improve performance by offloading caching, compression, and static file serving to a more efficient process.
 
-First, refresh your package list, then install Nginx using the following commands:
+Refresh your package list, then install Nginx using the following commands:
 
-$ sudo apt update
+    $ sudo apt update
 
-$ sudo apt install nginx
+    $ sudo apt install nginx
+
 Allow public traffic to ports 80 and 443 (HTTP and HTTPS) using the “Nginx Full” UFW application profile:
 
-$ sudo ufw allow "Nginx Full"
-Output:
+    $ sudo ufw allow "Nginx Full"
 
-Rule added
-Rule added (v6)
+    Output:
+
+    Rule added
+    Rule added (v6)
+
 Next, open up a new Nginx configuration file in the /etc/nginx/sites-available directory:
 
-$ sudo nano /etc/nginx/sites-available/matomo.conf
+    $ sudo nano /etc/nginx/sites-available/matomo.conf
+
 Paste the following into the new configuration file. Be sure to replace your_domain_here with the domain that you’ve configured to point to your Matomo server:
 
 /etc/nginx/sites-available/matomo.conf
 
-server {
-    listen       80;
-    listen       [::]:80;
-    server_name  your_domain_here;
+    server {
+        listen       80;
+        listen       [::]:80;
+        server_nameyour_domain_here;
 
-    access_log  /var/log/nginx/matomo.access.log;
-    error_log   /var/log/nginx/matomo.error.log;
+        access_log  /var/log/nginx/matomo.access.log;
+        error_log   /var/log/nginx/matomo.error.log;
 
-    location / {
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header X-Real-IP $remote_addr;
-      proxy_set_header X-Forwarded-Host $host;
-      proxy_set_header X-Forwarded-Proto https;
-      proxy_pass http://localhost:8080;
-  }
-}
+        location / {
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_pass http://localhost:8080;
+    }
+    }
 
+![](./images/36.png)
 
 Save and close the file, then enable the configuration by linking it into /etc/nginx/sites-enabled/:
 
-$ sudo ln -s /etc/nginx/sites-available/matomo.conf /etc/nginx/sites-enabled/
+    $ sudo ln -s /etc/nginx/sites-available/matomo.conf /etc/nginx/sites-enabled/
+
 Use nginx -t to verify that the configuration file syntax is correct:
 
-$ sudo nginx -t
+    $ sudo nginx -t
+
 And finally, reload the nginx service to pick up the new configuration:
 
-$ sudo systemctl reload nginx
+    $ sudo systemctl reload nginx
 
+![](./images/37.png)
 
-Your Matomo site should now be available on plain HTTP. Load http://your_domain_here (you may have to click through a security warning) and it will look like this:
+Your Matomo site should now be available on plain HTTP. Load *http://your_domain_here* (you may have to click through a security warning) and it will look like this:
 
-
+![](./images/38.png)
 
 Now that you have your site up and running over HTTP, it’s time to secure the connection with Certbot and Let’s Encrypt certificates. You should do this before going through Matomo’s web-based setup procedure.
 
-Installing Certbot and Setting Up SSL Certificates
+## *Step 3: Installing Certbot and Setting Up SSL Certificates*
+
 Thanks to Certbot and the Let’s Encrypt free certificate authority, adding SSL encryption to our Matomo app will take only two commands.
 
 First, install Certbot and its Nginx plugin:
 
-$ sudo apt install certbot python3-certbot-nginx
+    $ sudo apt install certbot python3-certbot-nginx
 
-When prompted, press Y to continue instillation.
+When prompted, press 'Y' to continue instillation.
 
 Next, run certbot in --nginx mode, and specify the same domain you used in the Nginx server_name config:
 
-$ sudo certbot --nginx -dyour_domain_here
-You will be prompted to agree to the Let’s Encrypt terms of service, and to enter an email address.
+    $ sudo certbot --nginx -dyour_domain_here
+
+You'll be prompted to agree to the Let’s Encrypt terms of service, and to enter an email address.
 
 Next, you’ll be asked if you want to redirect all HTTP traffic to HTTPS. It is generally recommended and safe to do.
 
 Next, Let’s Encrypt will confirm your request and Certbot will download your certificate:
 
+![](./images/39.png)
 
+## *Step 4: Setting Up Matomo*
 
-Setting Up Matomo
-Back in your web browser you should now have Matomo’s Welcome! page open via a secure https:// connection. Now you can enter usernames and passwords safely to complete the installation process.
+Back in your web browser you should now have Matomo’s *'Welcome!'* page open via a secure https:// connection. Now you can enter usernames and passwords safely to complete the installation process.
 
 Click the Next button. You’ll be taken to the System Check step:
 
-
+![](./images/40.png)
 
 This is a summary of the system Matomo is running on, and everything should be green checkmarks indicating there are no problems. Scroll all the way to the bottom and click the Next button.
 
 Now you’ll be on the Database Setup page:
 
+![](./images/41.png)
 
-
-The information you fill in on this page will tell the Matomo application how to connect to the MariaDB database. You’ll need the MARIADB_USER and MARIADB_PASSWORD that you chose in Step 1. You can copy them out of your .env file if you need to.
+The information you fill in on this page will tell the Matomo application how to connect to the MariaDB database. You’ll need the *'MARIADB_USER and MARIADB_PASSWORD'* that you chose in Step 1. You can copy them out of your .env file if you need to.
 
 Fill out the first four fields:
 
-Database Server: db
-Login: the username you set in the MARIADB_USER environment variable
-Password: the password you set in the MARIADB_PASSWORD environment variable
-Database Name: matomo
-Click Next once more. You’ll get a confirmation that the database Tables were set up correctly.
+- Database Server: db
 
+- Login: the username you set in the MARIADB_USER environment variable
 
+- Password: the password you set in the MARIADB_PASSWORD environment variable
 
-Click Next again. You’ll then need to set up an admin super user.
+- Database Name: matomo
 
+Click **'Next'** once more. You’ll get a confirmation that the database Tables were set up correctly:
 
+![](./images/42.png)
+
+Click **'Next'** again. You’ll then need to set up an admin super user.
+
+![](./images/43.png)
 
 Lastly, you will set up information about the first website you want to collect analytics for.
 
+![](./images/44.png)
 
+After these steps are complete, you should end up on step 8, a *'Congratulations'* page. We’re almost all done! Scroll down to the bottom and click the Continue to Matomo button, and you’ll be taken to the homepage:
 
-After these steps are complete, you should end up on step 8, a Congratulations page. You’re almost all done. Scroll down to the bottom and click the Continue to Matomo button, and you’ll be taken to the homepage:
-
-
+![](./images/45.png)
 
 There will be a large warning at the top of the page. There’s a small update you’ll need to do to Matomo’s configuration file to finish up this process.
 
+![](./images/46.png)
 
+Head back to the Terminal. On the command line, open up the configuration file with a text editor:
 
-Back on the command line, open up the configuration file with a text editor:
+    $ sudo nano matomo/config/config.ini.php
 
-$ sudo nano matomo/config/config.ini.php
 Near the top you should have a [General] section as shown below. Add these lines to the end of that section:
 
-trusted_hosts[] = "localhost:8080"
-assume_secure_protocol = 1
-force_ssl = 1
+    trusted_hosts[] = "localhost:8080"
+    assume_secure_protocol = 1
+    force_ssl = 1
 
+![](./images/47.png)
 
 These options let Matomo know that it’s safe to use port 8080, and that it should assume it’s always being accessed over a secure connection.
 
 Save and close the configuration file, then switch back to your browser and reload the page. The error should be gone, and you’ll be presented with a login prompt:
 
-
+![](./images/48.png)
 
 Log in with the admin account you created during setup, and you should be taken to the dashboard:
 
-
+![](./images/49.png)
 
 Please note, that since you probably have not set up your tracking code yet, the dashboard will indicate that no data has been recorded.
 
 Simply follow the instructions to finish setting up the JavaScript code on your website to start receiving analytics data!
 
-Conclusion
-Congratulations! You have successfully launched the Matamo analytics app and a MariaDB database using Docker Compose, and then set up an Nginx reverse proxy and secured it using Let’s Encrypt SSL certificates!
+## Conclusion
+
+We have successfully launched the Matamo analytics app and a MariaDB database using Docker Compose, and then set up an Nginx reverse proxy and secured it using Let’s Encrypt SSL certificates!
