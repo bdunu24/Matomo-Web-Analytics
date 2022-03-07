@@ -8,7 +8,7 @@ Welcome!
 
 Once Nginx is installed, it will serve as our reverse proxy by intercepting requests from clients for the Matomo app. To conclude the project, we'll enable secure HTTPS connections. This will be achieved by using a **Certbot ACME (Automated Certificate Management Environment)** client, which will download and configure SSL certificates from the Let's Encrypt Certificate Authority.
 
-# PART 1: An Ubuntu Server & UFW Firewall Foundation
+# Part 1: An Ubuntu Server & UFW Firewall Foundation
 
 To get started, you'll need a free AWS account, and then create a virtual server using the Ubuntu 20.04 server. Once this has been created, we will enable and configure a **UFW firewall (Uncomplicated Firewall).** 
 
@@ -118,7 +118,7 @@ So we have now established a regular user, which may be used to daily tasks. Nex
 
 In order to achieve this configuration, we must determine whether our Ubuntu server’s root account uses a password or SSH keys for authentication.
 
-## If the root Account Uses Password Authentication
+## If the Root Account Uses Password Authentication:
 
 If you logged in to your root account using a password, then that means that password authentication is enabled for SSH. Therefore, we can SSH into the new user account using the following command:
 
